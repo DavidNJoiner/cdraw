@@ -11,7 +11,15 @@ VWindow* createWindow(int w, int h) {
         fprintf(stderr, "Failed to allocate memory for VWindow\n");
         return NULL;
     }
-
+    
+    // Initialize all pointers to NULL
+    win->display = NULL;
+    win->gc = NULL;
+    win->surface = NULL;
+    win->ximage = NULL;
+    win->font = NULL;
+    win->backBuffer = None;
+    
     win->display = XOpenDisplay(NULL);
     if (win->display == NULL) {
         fprintf(stderr, "Cannot open display\n");
@@ -74,20 +82,61 @@ VWindow* createWindow(int w, int h) {
     win->drawQuads = true;
     win->randomize = false;
 
+    win->shouldClose = false;
+    win->wmDeleteMessage = XInternAtom(win->display, "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(win->display, win->window, &win->wmDeleteMessage, 1);
+
     return win;
 }
 
 void destroyWindow(VWindow* win) {
+    printf("Entering destroyWindow\n");
     if (win) {
-        if (win->font) XFreeFont(win->display, win->font);
-        if (win->ximage) XDestroyImage(win->ximage);
-        if (win->gc) XFreeGC(win->display, win->gc);
-        if (win->window) XDestroyWindow(win->display, win->window);
-        if (win->display) XCloseDisplay(win->display);
-        if (win->surface) freeSurface(win->surface);
-        if (win->backBuffer) XFreePixmap(win->display, win->backBuffer);
+        printf("Win is not NULL\n");
+        if (win->display) {
+            printf("Display is not NULL\n");
+            if (win->gc) {
+                printf("Freeing GC\n");
+                XFreeGC(win->display, win->gc);
+                win->gc = NULL;
+            }
+            if (win->ximage) {
+                printf("Destroying XImage\n");
+                XDestroyImage(win->ximage);
+                win->ximage = NULL;
+            }
+            if (win->backBuffer) {
+                printf("Freeing Pixmap\n");
+                XFreePixmap(win->display, win->backBuffer);
+                win->backBuffer = None;
+            }
+            if (win->window) {
+                printf("Destroying Window\n");
+                XDestroyWindow(win->display, win->window);
+                win->window = None;
+            }
+            if (win->font) {
+                printf("Freeing Font\n");
+                XFreeFont(win->display, win->font);
+                win->font = NULL;
+            }
+            
+            printf("Syncing display\n");
+            XSync(win->display, True);
+            
+            printf("Closing display\n");
+            XCloseDisplay(win->display);
+            win->display = NULL;
+        }
+        if (win->surface) {
+            printf("Freeing Surface\n");
+            freeSurface(win->surface);
+            win->surface = NULL;
+        }
+        printf("Freeing window struct\n");
         free(win);
     }
+    printf("Exiting destroyWindow\n");
 }
 
 void drawSurfaceToWindow(VWindow* win) {
@@ -114,19 +163,33 @@ void handleEvents(VWindow* win) {
     XEvent event;
     while (XPending(win->display) > 0) {
         XNextEvent(win->display, &event);
-        if (event.type == Expose) {
-            drawSurfaceToWindow(win);  
-        }
-        if (event.type == KeyPress) {
-            KeySym key = XLookupKeysym(&event.xkey, 0);
-            if (key == XK_space) {
-                win->drawQuads = !win->drawQuads;  
+        switch (event.type) {
+            case Expose:
+                printf("Expose event\n");
                 drawSurfaceToWindow(win);
-            } else if (key == XK_Escape) {
-                return;  
-            } else if (key == XK_r) {
-                win->randomize = true;
-            }
+                break;
+            case KeyPress:
+                {
+                    KeySym key = XLookupKeysym(&event.xkey, 0);
+                    if (key == XK_space) {
+                        printf("Space key pressed\n");
+                        win->drawQuads = !win->drawQuads;
+                        drawSurfaceToWindow(win);
+                    } else if (key == XK_Escape) {
+                        printf("Escape key pressed\n");
+                        win->shouldClose = true;
+                    } else if (key == XK_r) {
+                        printf("R key pressed\n");
+                        win->randomize = true;
+                    }
+                }
+                break;
+            case ClientMessage:
+                if ((Atom)event.xclient.data.l[0] == win->wmDeleteMessage) {
+                    printf("Window close button clicked\n");
+                    win->shouldClose = true;
+                }
+                break;
         }
     }
 }
@@ -143,7 +206,12 @@ void drawText(VWindow *win, int x, int y, const char *text, uint32_t textColor, 
     }
     
     if (font != NULL) {
-        XSetFont(win->display, win->gc, font->fid);
+        // Free the previous font if it exists
+        if (win->font) {
+            XFreeFont(win->display, win->font);
+        }
+        win->font = font;
+        XSetFont(win->display, win->gc, win->font->fid);
     }
 
     // Set the text color
@@ -151,10 +219,5 @@ void drawText(VWindow *win, int x, int y, const char *text, uint32_t textColor, 
 
     XDrawString(win->display, win->backBuffer, win->gc, x, y, text, strlen(text));
 
-    if (font != NULL) {
-        XFreeFont(win->display, font);
-    }
-
-    // Reset to default color if needed
-    // XSetForeground(win->display, win->gc, defaultColor);
+    // Don't free the font here, it will be freed in destroyWindow
 }
