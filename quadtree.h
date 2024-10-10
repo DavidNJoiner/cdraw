@@ -8,7 +8,7 @@
 #include "window.h"
 #include "vec2.h"
 
-#define QUAD_NODE_CAPACITY 3
+#define QUAD_NODE_CAPACITY 6
 
 typedef struct QuadTree QuadTree;
 

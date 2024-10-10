@@ -10,21 +10,20 @@
 
 int main() 
 {
+    // Seed the random number generator with a constant value for reproducibility
     srand(time(NULL));
-
-    VWindow* window = createWindow(WIDTH, HEIGHT);
-    if (!window) {
-        fprintf(stderr, "Failed to create window\n");
-        return 1;
-    }
 
     float fhalfWidth = WIDTH/2.0f;
     float fhalfHeight = HEIGHT/2.0f;
     vec2 rootQuadCenter = {fhalfWidth, fhalfHeight};
 
+    VWindow* window = createWindow(WIDTH, HEIGHT);
+    ASSERT(window != NULL);
+
     QuadTree* rootQuad = constructQuadTree(rootQuadCenter, fhalfWidth, fhalfHeight);
-    if (!rootQuad) {
-        fprintf(stderr, "Failed to create quadtree\n");
+    ASSERT(rootQuad != NULL);
+    if (rootQuad == NULL)
+    {
         destroyWindow(window);
         return 1;
     }
@@ -33,7 +32,7 @@ int main()
    
     int pointCount = 0;
 
-    while (true) 
+    while (!window->shouldClose) 
     {
         // Clear the back buffer at the start of each frame
         XSetForeground(window->display, window->gc, BLACK);
@@ -48,11 +47,12 @@ int main()
             window->randomize = false;
         } 
 
-        if(pointCount < 220)
+        if(pointCount < 1000)
         {
-            vec2 p = {frand(window->surface->width), frand(window->surface->height)};
+            //vec2 p = {frand(window->surface->width), frand(window->surface->height)};
+            vec2 p = {frand_clustered(window->surface->width, 0.5f), frand_clustered(window->surface->height, 1.0f)};
             insert(rootQuad, p);
-            setPixel(window->surface, (int)p.x, (int)p.y, RED, 5);
+            setPixel(window->surface, (int)p.x, (int)p.y, RED, 3);
             pointCount++;
         } 
 
@@ -79,7 +79,16 @@ int main()
         handleEvents(window);
         usleep(16667);  // ~60 FPS
     }
-    XFreeFont(window->display, window->font);
+
+    // After the main loop
+    XSync(window->display, False);
+    while (XPending(window->display)) {
+        XEvent event;
+        XNextEvent(window->display, &event);
+    }
+
+    // Clean up
+    //XFreeFont(window->display, window->font);
     freeQuadTree(rootQuad);
     destroyWindow(window);
     return 0;

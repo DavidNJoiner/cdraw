@@ -1,6 +1,8 @@
 #ifndef DEFINE_H
 #define DEFINE_H
 
+#include <assert.h>
+
 #define WHITE       0xFFFFFFFF
 #define RED         0xFFFF0000
 #define BLUE        0xFF0000FF
@@ -11,5 +13,9 @@
 #define BLACK       0xF0000000
 
 #define ROUND(f) ((f) >= 0 ? (int)((f) + 0.5f) : (int)((f) - 0.5f))
+
+
+#define ASSERT(expr) assert((expr) && #expr)
+
 
 #endif // DEFINE_H

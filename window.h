@@ -17,6 +17,8 @@ typedef struct VVWindow {
     Pixmap backBuffer;
     bool drawQuads;
     bool randomize;
+    bool shouldClose;  // Add this line
+    Atom wmDeleteMessage;  // Add this line
 } VWindow;
 
 VWindow* createWindow(int w, int h);
