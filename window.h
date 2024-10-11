@@ -8,17 +8,19 @@
 
 typedef struct VVWindow {
     Display* display;
-    Window window;  // Use VWindow type from Xlib
+    Window window; 
     GC gc;
-    int screen;
     Surface* surface;
     XImage* ximage;
     XFontStruct* font;
     Pixmap backBuffer;
+    XID screen;
+    int width;
+    int height;
     bool drawQuads;
     bool randomize;
-    bool shouldClose;  // Add this line
-    Atom wmDeleteMessage;  // Add this line
+    bool shouldClose;  
+    Atom wmDeleteMessage;  
 } VWindow;
 
 VWindow* createWindow(int w, int h);
@@ -26,7 +28,11 @@ VWindow* createWindow(int w, int h);
 void destroyWindow(VWindow* win);
 void drawSurfaceToWindow(VWindow* win);
 void handleEvents(VWindow* win);
-void drawText(VWindow *win, int x, int y, const char *text, uint32_t color, int textSize);
+void drawText(VWindow *win, int x, int y, const char *text, unsigned int color, int textSize);
+
+void clearColor(VWindow* window, unsigned int color);
+void drawPoint(VWindow* window, int x, int y, unsigned int color, int size);
+void presentWindow(VWindow* window);
 
 
 #endif //Window_H

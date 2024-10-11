@@ -13,9 +13,5 @@
 #define BLACK       0xF0000000
 
 #define ROUND(f) ((f) >= 0 ? (int)((f) + 0.5f) : (int)((f) - 0.5f))
-
-
 #define ASSERT(expr) assert((expr) && #expr)
-
-
 #endif // DEFINE_H

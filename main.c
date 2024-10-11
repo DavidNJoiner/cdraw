@@ -28,35 +28,35 @@ int main()
         return 1;
     }
 
+    window->width = WIDTH;
+    window->height = HEIGHT;
+
     XSetForeground(window->display, window->gc, LIGHT_GRAY);
    
     int pointCount = 0;
+    clearColor(window, BLACK);
 
     while (!window->shouldClose) 
     {
-        // Clear the back buffer at the start of each frame
-        XSetForeground(window->display, window->gc, BLACK);
-        XFillRectangle(window->display, window->backBuffer, window->gc, 0, 0, WIDTH, HEIGHT);
-
+        
         if(window->randomize)
         {
             pointCount = 0;
             freeQuadTree(rootQuad);
             rootQuad = constructQuadTree(rootQuadCenter, fhalfWidth, fhalfHeight);
-            clearSurface(window->surface, BLACK);
+            clearColor(window, BLACK);
             window->randomize = false;
         } 
 
         if(pointCount < 1000)
         {
-            //vec2 p = {frand(window->surface->width), frand(window->surface->height)};
-            vec2 p = {frand_clustered(window->surface->width, 0.5f), frand_clustered(window->surface->height, 1.0f)};
+            vec2 p = {frand_clustered(window->width, 0.5f), frand_clustered(window->height, 1.0f)};
             insert(rootQuad, p);
-            setPixel(window->surface, (int)p.x, (int)p.y, RED, 3);
+            drawPoint(window, (int)p.x, (int)p.y, RED, 3);
             pointCount++;
         } 
 
-        // Draw the surface (red dots) to the back buffer
+        // Draw the surface (red dots) to the window
         drawSurfaceToWindow(window);
 
         // Draw the QuadTree
@@ -70,25 +70,14 @@ int main()
         snprintf(buffer, sizeof(buffer), "Point Count: %d", pointCount);
         drawText(window, 10, 30, buffer, WHITE, 32);
 
-        // Copy the back buffer to the window
-        XCopyArea(window->display, window->backBuffer, window->window, window->gc, 
-                  0, 0, WIDTH, HEIGHT, 0, 0);
-
-        XFlush(window->display);
+        // Present the window (swap buffers)
+        presentWindow(window);
         
         handleEvents(window);
         usleep(16667);  // ~60 FPS
     }
 
-    // After the main loop
-    XSync(window->display, False);
-    while (XPending(window->display)) {
-        XEvent event;
-        XNextEvent(window->display, &event);
-    }
-
     // Clean up
-    //XFreeFont(window->display, window->font);
     freeQuadTree(rootQuad);
     destroyWindow(window);
     return 0;
