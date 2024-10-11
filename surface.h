@@ -13,15 +13,14 @@
 typedef struct Surface 
 {
     int width, height;
-    uint32_t* pixels; 
+    unsigned int* pixels; 
 } Surface;
 
 Surface* createSurface(int w, int h);
-
-void setPixel(Surface* surface, int x, int y, uint32_t color, int thickness);
-
-void clearSurface(Surface* surface, uint32_t color);
-
+void setPixel(Surface* surface, int x, int y, unsigned int color, int thickness);
+void clearSurface(Surface* surface, unsigned int color);
 void freeSurface(Surface* surface);
+
+XImage* surfaceToXImage(Display* display, Surface* surface);
 
 #endif //SURFACE_H

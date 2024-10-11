@@ -4,6 +4,10 @@
 #include <string.h>
 
 #include <X11/keysym.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <stdlib.h>
+#include <string.h>
 
 VWindow* createWindow(int w, int h) {
     VWindow* win = (VWindow*)malloc(sizeof(VWindow));
@@ -139,26 +143,6 @@ void destroyWindow(VWindow* win) {
     printf("Exiting destroyWindow\n");
 }
 
-void drawSurfaceToWindow(VWindow* win) {
-    if (!win || !win->display || !win->window || !win->gc || !win->ximage || !win->surface || !win->backBuffer) {
-        fprintf(stderr, "Error: Invalid WindowWrapper state in drawSurfaceToWindow\n");
-        return;
-    }
-    
-    // Copy surface data to XImage
-    memcpy(win->ximage->data, win->surface->pixels, win->surface->width * win->surface->height * sizeof(uint32_t));
-
-    // Draw to back buffer
-    XPutImage(win->display, win->backBuffer, win->gc, win->ximage, 0, 0, 0, 0, 
-              win->surface->width, win->surface->height);
-
-    // Copy back buffer to window
-    XCopyArea(win->display, win->backBuffer, win->window, win->gc, 
-              0, 0, win->surface->width, win->surface->height, 0, 0);
-
-    XFlush(win->display);
-}
-
 void handleEvents(VWindow* win) {
     XEvent event;
     while (XPending(win->display) > 0) {
@@ -194,30 +178,51 @@ void handleEvents(VWindow* win) {
     }
 }
 
-void drawText(VWindow *win, int x, int y, const char *text, uint32_t textColor, int textSize) {
-    char fontName[256];
-    snprintf(fontName, sizeof(fontName), "-*-helvetica-medium-r-*-*-%d-*-*-*-*-*-*-*", textSize);
-    
-    XFontStruct *font = XLoadQueryFont(win->display, fontName);
-    if (font == NULL) {
-        fprintf(stderr, "Failed to load font size %d\n", textSize);
-        // Fallback to a default font if the requested size is not available
-        font = XLoadQueryFont(win->display, "fixed");
+
+void clearColor(VWindow* window, unsigned int color)
+{
+    clearSurface(window->surface, color);
+    drawSurfaceToWindow(window);
+}
+
+void drawPoint(VWindow* window, int x, int y, unsigned int color, int size)
+{
+    setPixel(window->surface, x, y, color, size);
+    drawSurfaceToWindow(window);
+}
+
+void presentWindow(VWindow* window)
+{
+    // Copy the back buffer to the window
+    XCopyArea(window->display, window->backBuffer, window->window, window->gc, 
+              0, 0, window->width, window->height, 0, 0);
+    XFlush(window->display);
+}
+
+void drawSurfaceToWindow(VWindow* window)
+{
+    if (!window || !window->display || !window->window || !window->gc || !window->ximage || !window->surface || !window->backBuffer) {
+        fprintf(stderr, "Error: Invalid WindowWrapper state in drawSurfaceToWindow\n");
+        return;
     }
-    
-    if (font != NULL) {
-        // Free the previous font if it exists
-        if (win->font) {
-            XFreeFont(win->display, win->font);
-        }
-        win->font = font;
-        XSetFont(win->display, win->gc, win->font->fid);
-    }
+    // Copy surface data to XImage
+    window->ximage = surfaceToXImage(window->display, window->surface);
+    //memcpy(window->ximage->data, window->surface->pixels, window->surface->width * window->surface->height * sizeof(unsigned int));
 
-    // Set the text color
-    XSetForeground(win->display, win->gc, textColor);
+    // Draw to back buffer
+    XPutImage(window->display, window->backBuffer, window->gc, window->ximage, 0, 0, 0, 0, 
+              window->surface->width, window->surface->height);
 
-    XDrawString(win->display, win->backBuffer, win->gc, x, y, text, strlen(text));
+    // Copy back buffer to window
+    XCopyArea(window->display, window->backBuffer, window->window, window->gc, 
+              0, 0, window->surface->width, window->surface->height, 0, 0);
 
-    // Don't free the font here, it will be freed in destroyWindow
+    XFlush(window->display);
+}
+
+// Existing function, modified to use the new abstractions
+void drawText(VWindow* window, int x, int y, const char* text, unsigned int color, int fontSize)
+{
+    XSetForeground(window->display, window->gc, color);
+    XDrawString(window->display, window->backBuffer, window->gc, x, y, text, strlen(text));
 }
